@@ -5,6 +5,10 @@
 
 #include "ndlcom/Node.h"
 
+#if defined(__cplusplus)
+extern "C" {
+#endif
+
 /**
  * The states of the ISP master/slave algorithms
  */
@@ -20,9 +24,10 @@ typedef enum {
 /**
  * For the ISP master these functions provide access to the image files
  * For the ISP slave these functions provide access to the PROM/Flash memory
+ * Signature: (contextPtr, bufferPtr, size)
  */
-typedef unsigned int (*ispReadFunc)(void *, const unsigned int);
-typedef void (*ispWriteFunc)(const void *, const unsigned int);
+typedef unsigned int (*ispReadFunc)(void *,void *, const unsigned int);
+typedef void (*ispWriteFunc)(void *,const void *, const unsigned int);
 
 /**
  * The ispContext contains all information needed for the ISP functionality
@@ -51,21 +56,21 @@ int ispIsBusy(ispContext *ctx);
 /**
  * Destroys a given context
  */
-void ispDestroyContext(ispContext *ctx);
+void ispDestroy(ispContext *ctx);
 
 /* SLAVE FUNCTIONS*/
 
 /**
  * This function creates a context for an ISP slave
  */
-void ispCreateSlaveContext(ispContext *ctx, struct NDLComNode *node);
+void ispSlaveCreate(ispContext *ctx, struct NDLComNode *node, ispReadFunc readFunc, ispWriteFunc writeFunc);
 
 /* MASTER FUNCTIONS*/
 
 /**
  * This function creates a context for an ISP master
  */
-void ispCreateMasterContext(ispContext *ctx, struct NDLComNode *node);
+void ispMasterCreate(ispContext *ctx, struct NDLComNode *node, ispReadFunc readFunc, ispWriteFunc writeFunc);
 /**
  * Sets the target id and region information for the upcoming isp operation
  */
@@ -82,5 +87,14 @@ void ispMasterStartDownload(ispContext *ctx);
  * Starts the download of the target device PROM content and compares it with the content returned by read
  */
 void ispMasterStartVerify(ispContext *ctx);
+
+/* UGLY MASTER FUNCTIONS */
+
+void ispMasterExecuteSlaveBootloader (ispContext *ctx);
+void ispMasterExecuteSlaveFirmware (ispContext *ctx);
+
+#if defined(__cplusplus)
+}
+#endif
 
 #endif

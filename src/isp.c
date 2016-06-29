@@ -10,7 +10,7 @@ void ispSendCmd(ispContext *ctx, const uint8_t cmd, const uint32_t addr, const u
 int  ispSendData(ispContext *ctx);
 
 /*Library functions*/
-void ispCreateSlaveContext(ispContext *ctx, struct NDLComNode *node)
+void ispSlaveCreate(ispContext *ctx, struct NDLComNode *node, ispReadFunc readFunc, ispWriteFunc writeFunc)
 {
     ctx->state = ISP_STATE_IDLE;
     ctx->node = node;
@@ -21,11 +21,15 @@ void ispCreateSlaveContext(ispContext *ctx, struct NDLComNode *node)
     ctx->targetId = ctx->node->headerConfig.mOwnSenderId;
     ctx->sourceId = NDLCOM_ADDR_BROADCAST;
 
+    /*Read and write functions*/
+    ctx->read = readFunc;
+    ctx->write = writeFunc;
+
     /*TODO: Implement me*/
     /*NOTE: This means to implement a handler function (see lib/stm32common/src/isp.c)*/
 }
 
-void ispMasterCreateContext(ispContext *ctx, struct NDLComNode *node)
+void ispMasterCreate(ispContext *ctx, struct NDLComNode *node, ispReadFunc readFunc, ispWriteFunc writeFunc)
 {
     /*Give some initial values*/
     ctx->state = ISP_STATE_IDLE;
@@ -36,13 +40,17 @@ void ispMasterCreateContext(ispContext *ctx, struct NDLComNode *node)
     /*We are the source, and we are targetting ALL devices Muahahaha!*/
     ctx->sourceId = ctx->node->headerConfig.mOwnSenderId;
     ctx->targetId = NDLCOM_ADDR_BROADCAST;
+
+    /*Read and write functions*/
+    ctx->read = readFunc;
+    ctx->write = writeFunc;
     
     /*Register isp master handler*/
     ndlcomInternalHandlerInit(&ctx->handler, ispMasterHandler, 0, ctx);
     ndlcomNodeRegisterInternalHandler(ctx->node, &ctx->handler);
 }
 
-void ispDestroyContext(ispContext *ctx)
+void ispDestroy(ispContext *ctx)
 {
     /*TODO: Deregister isp handler*/
     ctx->node = NULL;
@@ -66,6 +74,7 @@ void ispMasterSetTarget(ispContext *ctx, const NDLComId targetId, const unsigned
     ctx->targetId = targetId;
     ctx->startAddr = addr;
     ctx->length = len;
+    ctx->offset = 0;
 }
 
 void ispMasterStartUpload(ispContext *ctx)
@@ -98,6 +107,19 @@ void ispMasterStartVerify(ispContext *ctx)
     ctx->state = ISP_STATE_VERIFIING;
 }
 
+/*FIXME This EXECUTE command is not well-formed ... it should be clear which image to load (from address?)*/
+void ispMasterExecuteSlaveBootloader (ispContext *ctx)
+{
+    /*Trigger execute command*/
+    ispSendCmd(ctx, ISP_CMD_EXECUTE, ctx->startAddr, ctx->length);
+}
+
+void ispMasterExecuteSlaveFirmware (ispContext *ctx)
+{
+    /*Trigger execute command*/
+    ispSendCmd(ctx, ISP_CMD_EXECUTE, ctx->startAddr, ctx->length);
+}
+
 /*Internally used function implementations*/
 void ispSendCmd(ispContext *ctx, const uint8_t cmd, const uint32_t addr, const uint32_t len)
 {
@@ -119,7 +141,7 @@ int ispSendData(ispContext *ctx)
     data.mAddress = ctx->startAddr + ctx->offset;
 
     /*Call read function*/
-    n = ctx->read(data.mData, n);
+    n = ctx->read(ctx, data.mData, n);
 
     ndlcomNodeSend(ctx->node, ctx->targetId, &data, sizeof(data));
 
@@ -143,6 +165,10 @@ void ispMasterCmdHandler(ispContext *ctx, const struct NDLComHeader *header, con
                     if (ispSendData(ctx) > 0)
                     {
                         ctx->state = ISP_STATE_UPLOADING;
+                    } else if (ctx->offset < ctx->length)
+                    {
+                        /*TODO: If we could not send data but there is still data to be sent, we have to send an abort command!!!*/
+                        ctx->state = ISP_STATE_ERROR;
                     } else {
                         /*Ready :)*/
                         ctx->state = ISP_STATE_IDLE;
@@ -174,7 +200,7 @@ void ispMasterDataHandler(ispContext *ctx, const struct NDLComHeader *header, co
                 break;
             }
             /*Read content from provided function*/
-            n = ctx->read(buffer, n);
+            n = ctx->read(ctx, buffer, n);
             /*Compare buffer with received data*/
             for (i = 0; i < n; ++i)
             {
@@ -210,7 +236,7 @@ void ispMasterDataHandler(ispContext *ctx, const struct NDLComHeader *header, co
                 break;
             }
             /*Write data to buffer*/
-            ctx->write(data->mData, n);
+            ctx->write(ctx, data->mData, n);
             /*Update offset*/
             ctx->offset += n;
             /*Check if we still have to read data*/
