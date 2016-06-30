@@ -18,13 +18,9 @@ endif(ISP_ENABLE_TESTING)
 
 if(NOT TARGET ndlcom)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../lib/ndlcom ndlcom)
-    #include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../lib/ndlcom/include)
-    #include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../lib/ndlcom/src)
 endif(NOT TARGET ndlcom)
 if(NOT TARGET representations)
     add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../lib/representations representations)
-    #include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../lib/representations/include)
-    #include_directories(${CMAKE_CURRENT_SOURCE_DIR}/../lib/representations/src)
 endif(NOT TARGET representations)
 
 # nothing special here

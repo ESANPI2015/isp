@@ -7,7 +7,7 @@
 #include "ndlcom/Bridge.h"
 #include "ndlcom/Node.h"
 #include "ndlcom/ExternalInterfaceParseUri.hpp"
-#include "isp.h"
+#include "isp/isp.h"
 
 static struct option long_options[] = {
     {"help",     no_argument,       0, 'h'},
