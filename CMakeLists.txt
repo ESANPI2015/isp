@@ -17,10 +17,10 @@ if(ISP_ENABLE_TESTING)
 endif(ISP_ENABLE_TESTING)
 
 if(NOT TARGET ndlcom)
-    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../lib/ndlcom ndlcom)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../lib/ndlcom ndlcom)
 endif(NOT TARGET ndlcom)
 if(NOT TARGET representations)
-    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../lib/representations representations)
+    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../lib/representations representations)
 endif(NOT TARGET representations)
 
 # nothing special here
