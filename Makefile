@@ -11,7 +11,7 @@ SRCDIR=$(shell pwd)
 ifndef ARCH
 ARCH?=$(shell ${CXX} -dumpmachine)
 else
-override CMAKE_FLAGS+=-DCMAKE_TOOLCHAIN_FILE=../CMake-Modules/${ARCH}.cmake
+override CMAKE_FLAGS+=-DCMAKE_TOOLCHAIN_FILE=../../CMake-Modules/${ARCH}.cmake
 endif
 
 # by default, we use a compiler dependent build and install directory.

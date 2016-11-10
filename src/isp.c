@@ -3,6 +3,11 @@
 #include "representations/Isp.h"
 
 /*Internally used functions*/
+void ispSlaveHandler(void *context, const struct NDLComHeader *header, const void *payload, const void *origin);
+void ispSlaveCmdHandler(ispContext *ctx, const struct NDLComHeader *header, const struct IspCommand *cmd);
+void ispSlaveDataHandler(ispContext *ctx, const struct NDLComHeader *header, const struct IspData *data);
+void ispSendAck(ispContext *ctx, const uint32_t addr);
+
 void ispMasterHandler(void *context, const struct NDLComHeader *header, const void *payload, const void *origin);
 void ispMasterCmdHandler(ispContext *ctx, const struct NDLComHeader *header, const struct IspCommand *cmd);
 void ispMasterDataHandler(ispContext *ctx, const struct NDLComHeader *header, const struct IspData *data);
@@ -10,24 +15,165 @@ void ispSendCmd(ispContext *ctx, const uint8_t cmd, const uint32_t addr, const u
 int  ispSendData(ispContext *ctx);
 
 /*Library functions*/
-void ispSlaveCreate(ispContext *ctx, struct NDLComNode *node, ispReadFunc readFunc, ispWriteFunc writeFunc)
+
+/*SLAVE STUFF*/
+
+void ispSlaveCreate(ispContext *ctx, struct NDLComNode *node, ispReadFunc readFunc, ispWriteFunc writeFunc, ispExecFunc execFunc)
 {
     ctx->state = ISP_STATE_IDLE;
     ctx->node = node;
     ctx->offset = 0;
     ctx->length = 0;
 
-    /*We are the target and anyone could be the source oO*/
-    ctx->targetId = ctx->node->headerConfig.mOwnSenderId;
-    ctx->sourceId = NDLCOM_ADDR_BROADCAST;
+    /*We are the source and everyone could be the target (Master) at first*/
+    ctx->sourceId = ctx->node->headerConfig.mOwnSenderId;
+    ctx->targetId = NDLCOM_ADDR_BROADCAST;
 
     /*Read and write functions*/
     ctx->read = readFunc;
     ctx->write = writeFunc;
+    ctx->exec = execFunc;
 
-    /*TODO: Implement me*/
     /*NOTE: This means to implement a handler function (see lib/stm32common/src/isp.c)*/
+    /*Register isp slave handler*/
+    ndlcomInternalHandlerInit(&ctx->handler, ispSlaveHandler, 0, ctx);
+    ndlcomNodeRegisterInternalHandler(ctx->node, &ctx->handler);
 }
+
+void ispSendAck(ispContext *ctx, const uint32_t addr)
+{
+    struct IspCommand command;
+    command.mBase.mId = REPRESENTATIONS_REPRESENTATION_ID_IspCommand;
+    command.mCommand = ISP_CMD_ACK;
+    command.mAddress = addr;
+    command.mLength = ctx->length - ctx->offset;
+
+    ndlcomNodeSend(ctx->node, ctx->targetId, &command, sizeof(command));
+}
+
+void ispSlaveCmdHandler(ispContext *ctx, const struct NDLComHeader *header, const struct IspCommand *cmd)
+{
+    /*When we get an ACK and are in state UPLOADING, we read content from file and transmit it as DATA packet*/
+    switch (cmd->mCommand)
+    {
+        case ISP_CMD_ACK:
+            /*What does this mean? oO*/
+            break;
+        case ISP_CMD_UPLOAD:
+            /*The master wants to upload stuff to our PROM/Flash*/
+            if (ctx->state != ISP_STATE_IDLE)
+                break;
+            /*Ok, we can do it*/
+            /*TODO: Check address and length, How?*/
+            ctx->startAddr = cmd->mAddress;
+            ctx->offset = 0;
+            ctx->length = cmd->mLength;
+            /*Acknowledge and proceed*/
+            ispSendAck(ctx, cmd->mAddress);
+            ctx->state = ISP_STATE_UPLOADING;
+            break;
+        case ISP_CMD_DOWNLOAD:
+            /*The master wants to download stuff from our PROM/Flash*/
+            if (ctx->state != ISP_STATE_IDLE)
+                break;
+            /*Read, send data and proceed*/
+            ctx->startAddr = cmd->mAddress;
+            ctx->offset = 0;
+            ctx->length = cmd->mLength;
+            ispSendData(ctx);
+            break;
+        case ISP_CMD_EXECUTE:
+            /*We shall jump to the (newly) written code*/
+            if (ctx->state != ISP_STATE_IDLE)
+                break;
+            /*Acknowledge and execute*/
+            ispSendAck(ctx, cmd->mAddress);
+            ctx->exec(ctx);
+            break;
+        case ISP_CMD_ABORT:
+            /*Acknowledge and return to idle state*/
+            ispSendAck(ctx, cmd->mAddress);
+            ctx->state = ISP_STATE_IDLE;
+            break;
+        default:
+            /*Unknown stuff? oO*/
+            break;
+    }
+}
+
+void ispSlaveDataHandler(ispContext *ctx, const struct NDLComHeader *header, const struct IspData *data)
+{
+    int n = (ctx->length - ctx->offset > ISP_DATA_TRANSMISSION_BLOCK_SIZE)?ISP_DATA_TRANSMISSION_BLOCK_SIZE:ctx->length - ctx->offset;
+    int i;
+    uint8_t buffer[ISP_DATA_TRANSMISSION_BLOCK_SIZE];
+
+    switch (ctx->state)
+    {
+        case ISP_STATE_UPLOADING:
+            /*Check if addresses match*/
+            if (ctx->startAddr+ctx->offset > data->mAddress)
+            {
+                /*We already got this packet, so skip it but ack*/
+                ispSendAck(ctx, data->mAddress);
+                break;
+            }
+            else if (ctx->startAddr+ctx->offset < data->mAddress)
+            {
+                /*Something went wrong :(*/
+                ctx->state = ISP_STATE_ERROR;
+                break;
+            }
+            /*Write data to buffer*/
+            ctx->write(ctx, data->mData, n);
+            /*Update offset*/
+            ctx->offset += n;
+            /*Check if we still have to write data*/
+            if (ctx->offset >= ctx->length)
+            {
+                /*Ready :)*/
+                ctx->state = ISP_STATE_IDLE;
+            } else {
+                /*Still work todo :] */
+                ctx->state = ISP_STATE_UPLOADING;
+            }
+            /*When we have successfully written the data we have to send an acknowledgement*/
+            ispSendAck(ctx, data->mAddress);
+            break;
+        default:
+            break;
+    }
+}
+
+void ispSlaveHandler(void *context, const struct NDLComHeader *header, const void *payload, const void *origin)
+{
+    /*Handle incoming isp stuff*/
+    const struct Representation *repr = (const struct Representation *)payload;
+    ispContext *ctx = (ispContext *)context;
+
+    /*When the master is not allowed to control us, we quit:
+     * If we are in the middle of something noone else can control us*/
+    if (ispIsBusy(ctx) && (header->mSenderId != ctx->targetId))
+        return;
+
+    /*Register the master's id for responses*/
+    ctx->targetId = header->mSenderId;
+
+    switch (repr->mId)
+    {
+        case REPRESENTATIONS_REPRESENTATION_ID_IspCommand:
+            /*Call command handler*/
+            ispSlaveCmdHandler(ctx, header, (const struct IspCommand *)repr);
+            break;
+        case REPRESENTATIONS_REPRESENTATION_ID_IspData:
+            /*Call data handler*/
+            ispSlaveDataHandler(ctx, header, (const struct IspData *)repr);
+            break;
+        default:
+            break;
+    }
+}
+
+/*MASTER STUFF*/
 
 void ispMasterCreate(ispContext *ctx, struct NDLComNode *node, ispReadFunc readFunc, ispWriteFunc writeFunc)
 {
@@ -44,6 +190,7 @@ void ispMasterCreate(ispContext *ctx, struct NDLComNode *node, ispReadFunc readF
     /*Read and write functions*/
     ctx->read = readFunc;
     ctx->write = writeFunc;
+    ctx->exec = NULL;
     
     /*Register isp master handler*/
     ndlcomInternalHandlerInit(&ctx->handler, ispMasterHandler, 0, ctx);

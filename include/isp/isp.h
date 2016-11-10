@@ -30,6 +30,13 @@ typedef unsigned int (*ispReadFunc)(void *,void *, const unsigned int);
 typedef void (*ispWriteFunc)(void *,const void *, const unsigned int);
 
 /**
+ * For ISP slaves this function will provide means to execute another portion of code
+ * as if the device had been reset
+ * Signature: (contextPtr)
+ */
+typedef void (*ispExecFunc)(void *);
+
+/**
  * The ispContext contains all information needed for the ISP functionality
  */
 typedef struct {
@@ -45,6 +52,7 @@ typedef struct {
     unsigned int length;
     ispReadFunc read;
     ispWriteFunc write;
+    ispExecFunc exec;
 } ispContext;
 
 
@@ -63,7 +71,7 @@ void ispDestroy(ispContext *ctx);
 /**
  * This function creates a context for an ISP slave
  */
-void ispSlaveCreate(ispContext *ctx, struct NDLComNode *node, ispReadFunc readFunc, ispWriteFunc writeFunc);
+void ispSlaveCreate(ispContext *ctx, struct NDLComNode *node, ispReadFunc readFunc, ispWriteFunc writeFunc, ispExecFunc execFunc);
 
 /* MASTER FUNCTIONS*/
 
