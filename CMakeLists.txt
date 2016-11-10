@@ -82,13 +82,12 @@ if (NOT CMAKE_CROSSCOMPILING)
     add_definitions(-fPIC)
 endif (NOT CMAKE_CROSSCOMPILING)
 
-# some tooling for debugging and playing around
-add_subdirectory(tools)
-
 # testing has to be enabled explicitly!
 if(NOT CMAKE_CROSSCOMPILING AND ISP_ENABLE_TESTING)
     enable_testing()
     add_subdirectory(test)
+# some tooling for debugging and playing around
+    add_subdirectory(tools)
 endif(NOT CMAKE_CROSSCOMPILING AND ISP_ENABLE_TESTING)
 
 # doxygen:
