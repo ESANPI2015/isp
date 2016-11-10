@@ -104,8 +104,6 @@ void ispSlaveCmdHandler(ispContext *ctx, const struct NDLComHeader *header, cons
 void ispSlaveDataHandler(ispContext *ctx, const struct NDLComHeader *header, const struct IspData *data)
 {
     int n = (ctx->length - ctx->offset > ISP_DATA_TRANSMISSION_BLOCK_SIZE)?ISP_DATA_TRANSMISSION_BLOCK_SIZE:ctx->length - ctx->offset;
-    int i;
-    uint8_t buffer[ISP_DATA_TRANSMISSION_BLOCK_SIZE];
 
     switch (ctx->state)
     {
