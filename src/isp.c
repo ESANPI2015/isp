@@ -36,8 +36,8 @@ void ispSlaveCreate(ispContext *ctx, struct NDLComNode *node, ispReadFunc readFu
 
     /*NOTE: This means to implement a handler function (see lib/stm32common/src/isp.c)*/
     /*Register isp slave handler*/
-    ndlcomInternalHandlerInit(&ctx->handler, ispSlaveHandler, 0, ctx);
-    ndlcomNodeRegisterInternalHandler(ctx->node, &ctx->handler);
+    ndlcomNodeHandlerInit(&ctx->handler, ispSlaveHandler, 0, ctx);
+    ndlcomNodeRegisterNodeHandler(ctx->node, &ctx->handler);
 }
 
 void ispSendAck(ispContext *ctx, const uint32_t addr)
@@ -191,8 +191,8 @@ void ispMasterCreate(ispContext *ctx, struct NDLComNode *node, ispReadFunc readF
     ctx->exec = NULL;
     
     /*Register isp master handler*/
-    ndlcomInternalHandlerInit(&ctx->handler, ispMasterHandler, 0, ctx);
-    ndlcomNodeRegisterInternalHandler(ctx->node, &ctx->handler);
+    ndlcomNodeHandlerInit(&ctx->handler, ispMasterHandler, 0, ctx);
+    ndlcomNodeRegisterNodeHandler(ctx->node, &ctx->handler);
 }
 
 void ispDestroy(ispContext *ctx)

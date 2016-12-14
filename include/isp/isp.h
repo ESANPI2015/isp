@@ -41,7 +41,7 @@ typedef void (*ispExecFunc)(void *);
  */
 typedef struct {
     /*NDLCom stuff*/
-    struct NDLComInternalHandler handler;
+    struct NDLComNodeHandler handler;
     struct NDLComNode *node;
     NDLComId sourceId;
     NDLComId targetId;
