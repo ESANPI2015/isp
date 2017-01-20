@@ -4,6 +4,7 @@
 /*TODO: ISP 2.0: We dont want to have a startAddr and such ... we just want regions like Firmware & Configuration*/
 
 #include "ndlcom/Node.h"
+#include "ndlcom/NodeHandler.h"
 
 #if defined(__cplusplus)
 extern "C" {
