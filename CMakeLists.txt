@@ -16,25 +16,32 @@ if(ISP_ENABLE_TESTING)
     add_definitions(-g -O0 -Wall -Wpedantic)
 endif(ISP_ENABLE_TESTING)
 
-if(NOT TARGET ndlcom)
-    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../lib/ndlcom ndlcom)
-endif(NOT TARGET ndlcom)
-if(NOT TARGET representations)
-    add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../../lib/representations representations)
-endif(NOT TARGET representations)
+if(USE_CMAKE_ADD_SUBDIRECTORY)
+     # we need the represenation headers (the "RegisterInfo" class uses typedefs
+     # from there), so do this here:
+     if(NOT TARGET representations)
+         add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../representations representations)
+     endif(NOT TARGET representations)
+     # we need the NDLCom types for generated cpp files
+     # from there), so do this here:
+     if(NOT TARGET ndlcom)
+         add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/../ndlcom ndlcom)
+     endif(NOT TARGET ndlcom)
+     SET(ENV{PKG_CONFIG_PATH} ${CMAKE_BINARY_DIR}:$ENV{PKG_CONFIG_PATH})
+endif()
 
 # nothing special here
-include_directories(${CMAKE_CURRENT_SOURCE_DIR}/include)
+include_directories(include)
 # the following is needed because library 'representation' generates code!
-#include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
 
-SET(ENV{PKG_CONFIG_PATH}
-    ${CMAKE_BINARY_DIR}:$ENV{PKG_CONFIG_PATH}
-    )
+#SET(ENV{PKG_CONFIG_PATH}
+#    ${CMAKE_BINARY_DIR}:$ENV{PKG_CONFIG_PATH}
+#    )
 
 find_package(PkgConfig)
 pkg_check_modules(${PROJECT_NAME}_PKGCONFIG REQUIRED
-    ndlcom representations
+    representations ndlcom
     )
 
 include_directories(${${PROJECT_NAME}_PKGCONFIG_INCLUDE_DIRS})
@@ -53,6 +60,10 @@ set(HEADERS_lib
 add_library(${PROJECT_NAME}
     ${SOURCES_lib}
     )
+# link dependent libraries
+target_link_libraries(${PROJECT_NAME}
+    ${${PROJECT_NAME}_PKGCONFIG_LIBRARIES}
+)
 #
 # installing:
 install(TARGETS ${PROJECT_NAME}
