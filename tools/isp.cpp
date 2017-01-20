@@ -6,7 +6,7 @@
 
 #include "ndlcom/Bridge.h"
 #include "ndlcom/Node.h"
-#include "ndlcom/ExternalInterfaceParseUri.hpp"
+//#include "ndlcom/ExternalInterfaceParseUri.hpp"
 #include "isp/isp.h"
 
 static struct option long_options[] = {
@@ -81,8 +81,10 @@ int main(int argc, char **argv)
 
     // Setup ndlcom stuff
     ndlcomBridgeInit(&bridge);
-    ndlcomNodeInit(&node, &bridge, tmp.ctx.sourceId);
-    ndlcom::ParseUriAndCreateExternalInterface(std::cerr, bridge, uri);
+    ndlcomNodeInit(&node, tmp.ctx.sourceId);
+    ndlcomNodeRegister(&node, &bridge);
+    //ndlcom::ParseUriAndCreateExternalInterface(std::cerr, bridge, uri);
+    // Thanks to MZ we have now to create an External Interface of our own
 
     // Prepare ISP master and its context
     ispMasterCreate(&context.ctx, &node, ispMasterRead, ispMasterWrite);

@@ -6,6 +6,10 @@ option(ISP_ENABLE_TESTING
     "will enable testing, add the 'test' subdirectory and add some additional
     compiler-flags for debugging"
     OFF)
+option(ISP_ENABLE_TOOLS
+    "will enable tools, add the 'tools' subdirectory and add some additional
+    compiler-flags for debugging"
+    ON)
 
 # we will need to execute binaries, which is not possible while cross-compiling
 if(CMAKE_CROSSCOMPILING AND ISP_ENABLE_TESTING)
@@ -82,9 +86,12 @@ endif (NOT CMAKE_CROSSCOMPILING)
 if(NOT CMAKE_CROSSCOMPILING AND ISP_ENABLE_TESTING)
     enable_testing()
     add_subdirectory(test)
-# some tooling for debugging and playing around
-    add_subdirectory(tools)
 endif(NOT CMAKE_CROSSCOMPILING AND ISP_ENABLE_TESTING)
+
+if(NOT CMAKE_CROSSCOMPILING AND ISP_ENABLE_TOOLS)
+    # some tooling for debugging and playing around
+    add_subdirectory(tools)
+endif(NOT CMAKE_CROSSCOMPILING AND ISP_ENABLE_TOOLS)
 
 # doxygen:
 configure_file(Doxyfile.in ${CMAKE_CURRENT_BINARY_DIR}/Doxyfile @ONLY)
